@@ -10,28 +10,16 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 
-clarifai_pat = os.getenv('CLARIFAI_PAT')
 
-PAT = clarifai_pat
-# Specify the correct user_id/app_id pairings
-# Since you're making inferences outside your app's scope
+PAT = '49ac292bc55c4b3ba1ee4e3c542a5331'
+
 USER_ID = 'meta'
 APP_ID = 'Llama-2'
 # Change these to whatever model and text URL you want to use
 MODEL_ID = 'llama2-70b-chat'
-MODEL_VERSION_ID = '6c27e86364ba461d98de95cddc559cb3'
 
-
-# Set page title
-import streamlit as st
-
-# Set page title
-
-
-# Main Title
 st.title("🎥LLamaScriptAI: Revolutionize Video Creation with AI Magic 🦙🎥")
 
-# Description
 st.markdown("""
 Create captivating videos effortlessly with the YouTube Video Creator powered by LLAMA 2! ✨
 🌟 **About LLamaScriptAI:**
@@ -74,7 +62,7 @@ storyname = st.text_input("Create a video about")
 if (st.button("SUBMIT")):
     st.write("Please note that video creation may take up to 10 minutes.")
     prompt = """
-    Generate a fully compelling video story script for youtube video about """ + storyname + """You choose video tone,genre ,the length of the entire video be 1 minute,names and everthing in the video . For each sentence in the story, provide a related visual image scene description to enhance the storytelling. Remember to format the output as follows: Image Prompt: [Insert image description or scene here] Narrator: [Write the narration or dialogue for the sentence] Image Prompt: [Insert image description or scene here] Narrator: [Write the narration or dialogue for the sentence] and so on untill the end of the story. return without commentary"""
+    Generate a fully compelling video story script for youtube video about """ + storyname + """You choose video tone,genre ,the length of the entire video be 1 minute,names and everthing in the video, the story must have a ending,it must be meaningful . For each sentence in the story, provide a related visual image scene description to enhance the storytelling. Remember to format the output as follows: Image Prompt: [Insert image description or scene here] Narrator: [Write the narration or dialogue for the sentence] Image Prompt: [Insert image description or scene here] Narrator: [Write the narration or dialogue for the sentence] and so on untill the end of the story. return without commentary"""
 
     from clarifai_grpc.channel.clarifai_channel import ClarifaiChannel
     from clarifai_grpc.grpc.api import resources_pb2, service_pb2, service_pb2_grpc
@@ -108,7 +96,6 @@ if (st.button("SUBMIT")):
         print(post_model_outputs_response.status)
         raise Exception(f"Post model outputs failed, status: {post_model_outputs_response.status.description}")
 
-    # Since we have one input, one output will exist here
     output = post_model_outputs_response.outputs[0]
 
     st.write("Completion:\n")
@@ -135,28 +122,26 @@ if (st.button("SUBMIT")):
             narrator_prompt.append(narrator_prompt_text[0])
         except:
             pass
-    st.title("IMAGES : ")
+    st.subheader("IMAGE PROMPTS: ")
     for iter in image_prompt:
         st.write(iter)
-    st.title("NARRATOR")
+    st.subheader("SCRIPTS")
     for iter in narrator_prompt:
         st.write(iter)
 
     from gtts import gTTS
-
     count = 0
-
+    st.write("Audio files are being generated")
     for idx, para in enumerate(narrator_prompt):
         tts = gTTS(text=para, lang='en', slow=False)
         audio_filename = f"voiceover{idx}.mp3"  # Use index for unique filenames
         tts.save(audio_filename)
-        print(f"Generated audio for prompt {idx}")
+        st.write(f"Generated {idx} audio")
         count = count + 1
 
     USER_ID = 'stability-ai'
     APP_ID = 'stable-diffusion-2'
     MODEL_ID = 'stable-diffusion-xl'
-    MODEL_VERSION_ID = '0c919cc1edfc455dbc96207753f178d7'
     TEXT_FILE_URL = 'https://samples.clarifai.com/negative_sentence_12.txt'
     from clarifai_grpc.channel.clarifai_channel import ClarifaiChannel
     from clarifai_grpc.grpc.api import resources_pb2, service_pb2, service_pb2_grpc
@@ -170,7 +155,7 @@ if (st.button("SUBMIT")):
         print(post_model_outputs_response.status)
         raise Exception("Post model outputs failed, status: " + post_model_outputs_response.status.description)
 
-    print("Created text to speech succesfully")
+    st.write("Created text to speech succesfully")
     for concept in output.data.concepts:
         print("%s %.2f" % (concept.name, concept.value))
     for idx, iter in enumerate(image_prompt):
@@ -180,7 +165,6 @@ if (st.button("SUBMIT")):
             service_pb2.PostModelOutputsRequest(
                 user_app_id=userDataObject,
                 model_id=MODEL_ID,
-                version_id=MODEL_VERSION_ID,
                 inputs=[
                     resources_pb2.Input(
                         data=resources_pb2.Data(
@@ -198,41 +182,33 @@ if (st.button("SUBMIT")):
             raise Exception("Post model outputs failed, status: " + post_model_outputs_response.status.description)
 
         output = post_model_outputs_response.outputs[0]
-        print(f"Created {idx} stable diffusion image")
+        st.write(f"stable diffusion image {idx} is saved")
         for concept in output.data.concepts:
             print("%s %.2f" % (concept.name, concept.value))
 
         base64_image = output.data.image.base64
-        image_filename = f"Clarifai_image_{idx}.jpg"  # Use index for unique filenames
+        image_filename = f"Clarifai_image_{idx}.jpg" 
         with open(image_filename, 'wb') as f:
             f.write(base64_image)
 
     from moviepy.editor import ImageClip, concatenate_videoclips
     from moviepy.audio.io.AudioFileClip import AudioFileClip
-
-    # Replace these values with your actual counts and paths
-    # Replace with the desired count
     output_video_filename = "output_video.mp4"
+    st.write("Merging audios and images together")
 
     image_filenames = [f"Clarifai_image_{idx}.jpg" for idx in range(count)]
     audio_filenames = [f"voiceover{idx}.mp3" for idx in range(count)]
 
-    # Create audio clips
     audio_clips = [AudioFileClip(audio_filename) for audio_filename in audio_filenames]
-
-    # Create image clips
+    
     image_clips = [ImageClip(image_filename, duration=audio_clip.duration)
                    for image_filename, audio_clip in zip(image_filenames, audio_clips)]
 
-    # Combine image and audio clips
     final_clips = [image_clip.set_audio(audio_clip)
                    for image_clip, audio_clip in zip(image_clips, audio_clips)]
-
-    # Concatenate the clips to create the final video
+    st.write("video is on the way")
     video = concatenate_videoclips(final_clips, method="compose")
-
-    # Save the final video
     video.write_videofile(output_video_filename, codec='libx264', threads=4, audio_codec='aac',
-                          fps=24)  # Adjust the frame rate as needed
+                          fps=24) 
     st.video("output_video.mp4")
     print("Video creation completed!")
