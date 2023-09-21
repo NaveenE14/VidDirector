@@ -19,7 +19,7 @@ video_style = st.selectbox("Select video style:", ["Animation", "Anime", "Natura
 if video_style == "Custom":
     custom_style = st.text_input("Enter custom video style:")
     video_style = custom_style if custom_style else video_style
-video_aspect = st.selectbox("Select aspect ratio:", ["16:9", "9:16", "1:1", "3:4", "Custom"])
+video_aspect = st.selectbox("Select aspect ratio:(In development)", ["1:1","16:9", "9:16", "3:4", "Custom"])
 if video_aspect == "Custom":
     custom_aspect = st.text_input("Enter custom aspect ratio:")
     video_aspect = custom_aspect if custom_aspect else video_aspect
