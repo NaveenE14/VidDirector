@@ -47,9 +47,8 @@ if st.button("Generate Video"):
     And so on until the end of the story.
 
     Return without commentary. Only the narrator should speak no other characters in the story. Give highly detailed 2 lines image prompts that relate to previous scenes. The prompts should be similar, and the images generated should be similar to each other because I am going to create a video using that."""
-    from dotenv import load_dotenv
-    load_dotenv()
-    clarifai_pat = os.getenv('CLARIFAI_PAT')
+
+    clarifai_pat = st.secrets.CLARIFAI_PAT
 
     PAT = clarifai_pat
     USER_ID = 'openai'
