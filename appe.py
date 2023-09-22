@@ -197,52 +197,64 @@ if st.button("Generate Video"):
     
     st.success("Images Generated Sucessfully")
     st.success("Generating video using moviepy")
-    from moviepy.editor import ImageClip, concatenate_videoclips
-    from moviepy.audio.io.AudioFileClip import AudioFileClip
-    import pysrt
-    import numpy as np  # Make sure to import numpy
-    
+    from moviepy.editor import ImageClip, concatenate_videoclips, AudioFileClip
+    import os
+
+    # Define your output video filename
     output_video_filename = "output_video.mp4"
-    clips = []
-    
-    # Assuming 'image_prompts' and 'narrator_prompts' are defined elsewhere in your code.
-    for idx, image_prompt in enumerate(image_prompts):
-        image_filename = f"image/image_{idx}.jpg"
-        audio_filename = f"audio/audio_{idx}.mp3"
-        image_clip = ImageClip(image_filename)
-        audio_clip = AudioFileClip(audio_filename)
-        
-        # Check if audio_clip has a valid duration (not None)
-        if audio_clip.duration is not None:
-            audio_clip = audio_clip.set_duration(image_clip.duration)
-            clip = image_clip.set_audio(audio_clip)
-            clips.append(clip)
+
+    # Get a list of image and audio files in their respective folders
+    image_folder = "image"  # Replace with the path to your image folder
+    audio_folder = "audio"  # Replace with the path to your audio folder
+
+    image_filenames = [os.path.join(image_folder, filename) for filename in os.listdir(image_folder) if filename.endswith(".jpg")]
+    audio_filenames = [os.path.join(audio_folder, filename) for filename in os.listdir(audio_folder) if filename.endswith(".mp3")]
+
+    # Sort the file lists to ensure they are in the right order
+    image_filenames.sort()
+    audio_filenames.sort()
+
+    # Create lists to hold image and audio clips
+    image_clips = []
+    audio_clips = []
+
+    # Load image and audio clips
+    for image_filename, audio_filename in zip(image_filenames, audio_filenames):
+        if os.path.exists(image_filename) and os.path.exists(audio_filename):
+            audio_clip = AudioFileClip(audio_filename)
+            image_clip = ImageClip(image_filename, duration=audio_clip.duration)
+            audio_clips.append(audio_clip)
+            image_clips.append(image_clip)
         else:
-            print(f"Warning: Skipping clip {idx} due to invalid audio duration.")
-    
-    if clips:
-        final_clip = concatenate_videoclips(clips)
-        final_clip.write_videofile(output_video_filename)
-        st.success("Video Generated Successfully")
-        st.balloons()
-        st.video(output_video_filename)
-    
-        # Add subtitles in the video using 'narrator_prompts'
-        st.success("Adding subtitles to the video")
-        subs = pysrt.SubRipFile()
-        for idx, narrator_prompt in enumerate(narrator_prompts):
-            subs.append(pysrt.SubRipItem(
-                index=idx + 1,
-                start=clips[idx].start,
-                end=clips[idx].end,
-                text=narrator_prompt
-            ))
-        subs.save("output_video.srt")
-        st.success("Subtitles added Successfully")
-    
-    st.success("Video Generated Successfully")
-    st.balloons()
+            print(f"Skipping image or audio file due to missing files.")
+
+    # Create final video clips by setting audio to images with transitions
+    final_clips = []
+    for idx in range(len(image_clips)):
+        image_clip = image_clips[idx]
+        audio_clip = audio_clips[idx]
+        
+        # Apply a crossfade transition to the image (you can adjust the duration)
+        transition_duration = 1  # Adjust the duration of the transition in seconds
+        if idx > 0:
+            image_clip = image_clip.crossfadein(transition_duration)
+        
+        # Set audio to the image
+        video_clip = image_clip.set_audio(audio_clip)
+        final_clips.append(video_clip)
+        #streamlit progress bar
+        my_bar = st.progress(idx+1)
+        my_bar.progress(idx+1)
+
+    # Concatenate the video clips
+    final_video = concatenate_videoclips(final_clips, method="compose")
+
+    # Write the final video to the specified output file
+    final_video.write_videofile(output_video_filename, codec='libx264', threads=4, audio_codec='aac', fps=24)
+    st.success("Video Generated Sucessfully")
     st.video("output_video.mp4")
+    st.snow()
+    
 
     
 
