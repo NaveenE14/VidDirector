@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <img src="https://i.ibb.co/JRxLgjh/Screenshot-2023-09-23-003438.png" alt="VidDirector Logo" width=260>
+  <img src="https://i.ibb.co/0t9hQSg/Screenshot-2023-09-23-003438-fotor-bg-remover-2023092304611.png" alt="VidDirector Logo" width=260>
   <br>
   VidDirector: Prompt to Video 🎥🌟
   <br>
