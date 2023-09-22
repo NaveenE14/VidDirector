@@ -199,37 +199,51 @@ if st.button("Generate Video"):
     st.success("Generating video using moviepy")
     from moviepy.editor import ImageClip, concatenate_videoclips
     from moviepy.audio.io.AudioFileClip import AudioFileClip
+    import pysrt
+    import numpy as np  # Make sure to import numpy
+    
     output_video_filename = "output_video.mp4"
     clips = []
+    
+    # Assuming 'image_prompts' and 'narrator_prompts' are defined elsewhere in your code.
     for idx, image_prompt in enumerate(image_prompts):
         image_filename = f"image/image_{idx}.jpg"
         audio_filename = f"audio/audio_{idx}.mp3"
         image_clip = ImageClip(image_filename)
         audio_clip = AudioFileClip(audio_filename)
-        audio_clip = audio_clip.set_duration(image_clip.duration)
-        clip = image_clip.set_audio(audio_clip)
-        clips.append(clip)
-    final_clip = concatenate_videoclips(clips)
-    final_clip.write_videofile(output_video_filename)
-    st.success("Video Generated Sucessfully")
-    st.ballons()
-    st.video(output_video_filename)
-    #add subtitles in the video using narrator_prompts  
-    st.success("Adding subtitles to the video")
-    import pysrt
-    subs = pysrt.SubRipFile()
-    for idx, narrator_prompt in enumerate(narrator_prompts):
-        subs.append(pysrt.SubRipItem(
-            index=idx+1,
-            start=clips[idx].start,
-            end=clips[idx].end,
-            text=narrator_prompt
-        ))
-    subs.save("output_video.srt")
-    st.success("Subtitles added Sucessfully")
-    st.success("Video Generated Sucessfully")
-    st.ballons()
+        
+        # Check if audio_clip has a valid duration (not None)
+        if audio_clip.duration is not None:
+            audio_clip = audio_clip.set_duration(image_clip.duration)
+            clip = image_clip.set_audio(audio_clip)
+            clips.append(clip)
+        else:
+            print(f"Warning: Skipping clip {idx} due to invalid audio duration.")
+    
+    if clips:
+        final_clip = concatenate_videoclips(clips)
+        final_clip.write_videofile(output_video_filename)
+        st.success("Video Generated Successfully")
+        st.balloons()
+        st.video(output_video_filename)
+    
+        # Add subtitles in the video using 'narrator_prompts'
+        st.success("Adding subtitles to the video")
+        subs = pysrt.SubRipFile()
+        for idx, narrator_prompt in enumerate(narrator_prompts):
+            subs.append(pysrt.SubRipItem(
+                index=idx + 1,
+                start=clips[idx].start,
+                end=clips[idx].end,
+                text=narrator_prompt
+            ))
+        subs.save("output_video.srt")
+        st.success("Subtitles added Successfully")
+    
+    st.success("Video Generated Successfully")
+    st.balloons()
     st.video("output_video.mp4")
+
     
 
     
