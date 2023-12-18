@@ -193,9 +193,9 @@ if st.button("Generate Video"):
     
     st.success("Generating audio files using Eleven Labs speech synthesis model")
    
-    USER_ID = 'eleven-labs'
-    APP_ID = 'audio-generation'
-    MODEL_ID = 'speech-synthesis'
+    USER_ID = 'openai'
+    APP_ID = 'tts'
+    MODEL_ID = 'openai-tts-1'
     folder_path = "audio"
     if os.path.exists(folder_path):
         shutil.rmtree(folder_path)
