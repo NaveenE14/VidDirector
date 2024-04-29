@@ -3,6 +3,8 @@ __pycache__
 *.pyc
 Downloadedaudio/
 archives/
+image/
+audio/
 videoTEMP_MPY_wvf_snd.mp4
 output_video.mp4
 temp_audio.wav
