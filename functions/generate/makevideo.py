@@ -6,53 +6,21 @@ class VideoGenerator:
         self.folder_path = None
 
     def generate_video(self, image_folder, audio_folder, output_file="video.mp4"):
-        # Check if image folder exists
-        if not os.path.exists(image_folder):
-            print(f"Image folder {image_folder} does not exist.")
-            return
-
-        # Check if audio folder exists
-        if not os.path.exists(audio_folder):
-            print(f"Audio folder {audio_folder} does not exist.")
-            return
-
         # Get list of image files
-        image_files = sorted([
-            os.path.join(image_folder, img)
-            for img in os.listdir(image_folder)
-            if img.endswith(".png") or img.endswith(".jpg")
-        ])
+        image_files = sorted([f for f in os.listdir(image_folder) if f.endswith(('.jpg', '.png', '.jpeg'))])
+        audio_files = sorted([f for f in os.listdir(audio_folder) if f.endswith('.mp3')])
 
-        # Check if there are audio files for each image
-        if len(image_files) != len(os.listdir(audio_folder)):
-            print("Number of image files does not match number of audio files.")
-            return
+        # Create list of video clips with transitions
+        video_clips = []
+        for img in image_files:
+            clip = ImageClip(os.path.join(image_folder, img)).set_duration(2)
+            video_clips.append(clip.crossfadein(1).crossfadeout(1))
 
-        clips = []
-        black_clip = ColorClip((1024, 1024), color=[0, 0, 0], duration=1)  # Black background
+        # Create list of audio clips
+        audio_clips = [AudioFileClip(os.path.join(audio_folder, audio)).set_duration(2) for audio in audio_files]
 
-        for i in range(len(image_files)):
-            image_file = image_files[i]
-            audio_file = os.listdir(audio_folder)[i]
+        # Create final video with transitions
+        final_clip = concatenate_videoclips(video_clips, method="compose")
+        final_clip = final_clip.set_audio(concatenate_audioclips(audio_clips))
 
-            image_clip = ImageClip(image_file)
-            audio_clip = AudioFileClip(os.path.join(audio_folder, audio_file))
-            image_duration = audio_clip.duration
-
-            # Apply crossfade transition
-            if i > 0:
-                prev_image_clip = clips[-1]
-                crossfade_duration = min(1, image_duration)  # Limit crossfade duration to image duration or 1 second
-                image_clip = CompositeVideoClip([prev_image_clip.set_start(image_duration - crossfade_duration).crossfadein(crossfade_duration),
-                                                 image_clip.crossfadeout(crossfade_duration)])
-            else:
-                image_clip = image_clip.crossfadein(1)  # Fade in for the first clip
-            
-            # Combine image and audio
-            combined_clip = CompositeVideoClip([black_clip.set_duration(image_duration), image_clip.set_audio(audio_clip)])
-            clips.append(combined_clip)
-
-        final_clip = concatenate_videoclips(clips, method="compose")
-        final_clip.write_videofile(output_file, fps=24, audio_codec="aac", codec="libx264")
-
-        return output_file
+        return final_clip
