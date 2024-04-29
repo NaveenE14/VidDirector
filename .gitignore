@@ -1,8 +1,6 @@
 /venv
 __pycache__
 *.pyc
-image/
-audio/
 Downloadedaudio/
 archives/
 videoTEMP_MPY_wvf_snd.mp4
