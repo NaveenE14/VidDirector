@@ -113,7 +113,6 @@ def download_audio_from_youtube(video_url, output_path):
         st.error(f"Error occurred while downloading audio: {str(e)}")
         return False
 
-# Add YouTube link input with unique key
 youtube_link = st.text_input("Enter YouTube video link for background music:", key="youtube_link")
 
 # Generate audio file based on the provided YouTube link
@@ -125,6 +124,14 @@ if st.button("Download Audio"):
         audio_file_path = os.path.join(output_path, "downloadedaudio.mp3")
         st.audio(audio_file_path)
 
+st.balloons()
+video_generator = makevideo.VideoGenerator()  
+image_folder = "image" 
+audio_folder = "audio"  
+output_file = "output_video.mp4"  
+video_file = video_generator.generate_video(image_folder, audio_folder, output_file)
+st.success("Video Generated Successfully")
+st.video(video_file)
 
 
 
@@ -237,10 +244,7 @@ if st.button("Generate Video"):
                     mime="image/jpeg",
                     key=download_button_key
                 )
-
-    
-
-    
+                
     st.balloons()
     video_generator = makevideo.VideoGenerator()  
     image_folder = "image" 

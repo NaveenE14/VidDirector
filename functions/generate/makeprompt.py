@@ -1,5 +1,3 @@
-# makeprompt.py
-
 
 def generate_prompts(text):
     image_prompts = []
