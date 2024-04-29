@@ -1,4 +1,8 @@
+from moviepy.editor import *
+import os
+import numpy as np
 from PIL import Image
+
 
 class VideoGenerator:
     def __init__(self):
