@@ -4,6 +4,14 @@ import shutil
 from clarifai_grpc.channel.clarifai_channel import ClarifaiChannel
 from clarifai_grpc.grpc.api import resources_pb2, service_pb2, service_pb2_grpc
 from clarifai_grpc.grpc.api.status import status_code_pb2
+from functions.api import gpt
+import functions.api.elevenlabs as elevenlabs
+import functions.api.dalle as dalle
+from streamlit_card import card
+import streamlit.components.v1 as components
+from functions.generate import makeprompt, makevideo
+from pytube import YouTube
+
 
 st.sidebar.image('./icon.png', width=250) 
 st.sidebar.title("VidDirector")
@@ -95,8 +103,65 @@ if video_aspect == "Custom":
     custom_aspect = st.text_input("Enter custom aspect ratio:")
     video_aspect = custom_aspect if custom_aspect else video_aspect
 
+def download_audio_from_youtube(video_url, output_path):
+    try:
+        yt = YouTube(video_url)
+        audio_stream = yt.streams.filter(only_audio=True).first()
+        audio_stream.download(output_path=output_path, filename="downloadedaudio.mp3")
+        return True
+    except Exception as e:
+        st.error(f"Error occurred while downloading audio: {str(e)}")
+        return False
+
+# Add YouTube link input with unique key
+youtube_link = st.text_input("Enter YouTube video link:", key="youtube_link")
+
+# Generate audio file based on the provided YouTube link
+if st.button("Download Audio"):
+    output_path = "Downloadedaudio"
+    if download_audio_from_youtube(youtube_link, output_path):
+        st.success(f"Audio file '{output_path}' downloaded successfully.")
+        # Play the downloaded audio
+        audio_file_path = os.path.join(output_path, "downloadedaudio.mp3")
+        st.audio(audio_file_path)
+
+
+
+
+# Display all images and audio files in two columns based on length
+image_folder = "image"
+audio_folder = "audio"
+
+image_files = os.listdir(image_folder)
+audio_files = os.listdir(audio_folder)
+
+num_images = len(image_files)
+num_audios = len(audio_files)
+
+num_cols = 2
+st.header("Images and Audios")
+if num_images > 0 and num_audios > 0:
+    col1, col2 = st.columns(num_cols)
+
+    for i, (audio_file, image_file) in enumerate(zip(audio_files, image_files)):
+        audio_path = os.path.join(audio_folder, audio_file)
+        image_path = os.path.join(image_folder, image_file)
+        with col1 if i < num_audios // num_cols else col2:
+            st.audio(audio_path, format='audio/mp3')
+            st.image(image_path, width=325)
+            st.download_button(
+                label="Download Image",
+                data=open(image_path, "rb").read(),
+                file_name=image_file,
+                mime="image/jpeg"
+            )
+
+
 
 if st.button("Generate Video"):
+    if not clarifai_pat:
+        st.error("Please enter your Clarifai Personal Access Token.")
+        st.stop() 
     st.success("Generating script...")
     st.write("Please note that video creation may take up to 10 minutes.")
     prompt = f"""
@@ -123,271 +188,97 @@ if st.button("Generate Video"):
     """
     
 
-    PAT = clarifai_pat
-    USER_ID = 'openai'
-    APP_ID = 'chat-completion'
-    MODEL_ID = 'gpt-4-turbo'
-    channel = ClarifaiChannel.get_grpc_channel()
-    stub = service_pb2_grpc.V2Stub(channel)
-    metadata = (('authorization', 'Key ' + PAT),)
-    userDataObject = resources_pb2.UserAppIDSet(user_id=USER_ID, app_id=APP_ID)
-    post_model_outputs_response = stub.PostModelOutputs(
-        service_pb2.PostModelOutputsRequest(
-            user_app_id=userDataObject, 
-            model_id=MODEL_ID,
-            inputs=[
-                resources_pb2.Input(
-                    data=resources_pb2.Data(
-                        text=resources_pb2.Text(
-                            raw=prompt
-                        )
-                    )
-                )
-            ]
-        ),
-        metadata=metadata
-    )
-    if post_model_outputs_response.status.code != status_code_pb2.SUCCESS:
-        print(post_model_outputs_response.status)
-        raise Exception(f"Post model outputs failed, status: {post_model_outputs_response.status.description}")
+    try:
+        output_text = gpt.call_gpt_api(prompt, clarifai_pat)
+    except Exception as e:
+        st.error(f"Error occurred during API call: {str(e)}")
+        st.stop()
 
+    
+    image_prompts, narrator_prompts = makeprompt.generate_prompts(output_text)
 
-    output = post_model_outputs_response.outputs[0]
-    st.write("Scripts:\n")
-    print(output.data.text.raw)
-    text = output.data.text.raw
-    image_prompts = []
-    narrator_prompts = []
-    paragraphs = text.split('\n')
-
-    current_prompt_type = None
-    for paragraph in paragraphs:
-        paragraph = paragraph.strip()
-        if paragraph.startswith("Image:"):
-            current_prompt_type = "Image Prompts"
-            paragraph = paragraph[len("Image: "):]
-            image_prompts.append(paragraph)
-        elif paragraph.startswith("Narrator:"):
-            current_prompt_type = "Narrator Prompts"
-            paragraph = paragraph[len("Narrator: "):]
-            narrator_prompts.append(paragraph)
-
-    print("Image Prompts:")
+   
+    st.write("Image Prompts:")
     for image_prompt in image_prompts:
-        print(image_prompt)
+        st.write(image_prompt)
 
-    print("\nNarrator Prompts:")
-    for narrator_prompt in narrator_prompts:
-        print(narrator_prompt)
-
-    print("Image Prompts:")
-    image_prompts = [prompt for prompt in image_prompts if prompt.strip()]
-    for image_prompt in image_prompts:
-        print(image_prompt)
-    narrator_prompts = [prompt for prompt in narrator_prompts if prompt.strip()]
+    st.write("\nNarrator Prompts:")
     for narrator_prompt in narrator_prompts:
         st.write(narrator_prompt)
-    st.success("Scripts Generated Sucessfully")
+
+    st.success("Scripts Generated Successfully")
     os.makedirs("audio", exist_ok=True)
 
     
     st.success("Generating audio files using Eleven Labs speech synthesis model")
    
-    USER_ID = 'openai'
-    APP_ID = 'tts'
-    MODEL_ID = 'openai-tts-1'
-    folder_path = "audio"
-    if os.path.exists(folder_path):
-        shutil.rmtree(folder_path)
-        os.makedirs(folder_path)
-    else:
-        os.makedirs(folder_path)
-    for idx, narrator_prompt in enumerate(narrator_prompts):
-        userDataObject = resources_pb2.UserAppIDSet(user_id=USER_ID, app_id=APP_ID)
-        post_model_outputs_response = stub.PostModelOutputs(
-            service_pb2.PostModelOutputsRequest(
-                user_app_id=userDataObject,
-                model_id=MODEL_ID,
-                inputs=[
-                    resources_pb2.Input(
-                        data=resources_pb2.Data(
-                            text=resources_pb2.Text(
-                                raw=narrator_prompt
-                            )
-                        )
-                    )
-                ]
-            ),
-            metadata=metadata
-        )
-        if post_model_outputs_response.status.code != status_code_pb2.SUCCESS:
-            print(post_model_outputs_response.status)
-            raise Exception("Post model outputs failed, status: " + post_model_outputs_response.status.description)
-        output = post_model_outputs_response.outputs[0]
-        print(f"{idx+1}Audio Generated")
-        for concept in output.data.concepts:
-            print("%s %.2f" % (concept.name, concept.value))
-        my_bar = st.progress((idx + 1) / len(narrator_prompts))
-        base64_audio = output.data.audio.base64
-        audio_filename = f"audio/audio_{idx}.mp3"  
-        with open(audio_filename, 'wb') as f:
-            f.write(base64_audio)
+    try:
+        elevenlabs.generate_audio_files(narrator_prompts, clarifai_pat)
+    except Exception as e:
+        st.error(f"Error occurred during audio generation: {str(e)}")
+        st.stop()
 
-    st.success("Audio files Generated Sucessfully")
-    st.success("Generating images using "+ image_model)
-    if image_model== "DALLE3":
-        USER_ID = 'openai'
-        APP_ID = 'dall-e'
-        MODEL_ID = 'dall-e-3'
-    elif image_model == "IMAGEN":
-        USER_ID = 'gcp'
-        APP_ID = 'generate'
-        MODEL_ID = 'Imagen'
-    elif image_model == "STABLEDIFFUSION XL":
-        USER_ID = 'stability-ai'
-        APP_ID = 'stable-diffusion-2'
-        MODEL_ID = 'stable-diffusion-xl'
-
-    folder_path = "image"
-    if os.path.exists(folder_path):
-        shutil.rmtree(folder_path)
-        os.makedirs(folder_path)
-    else:
-        os.makedirs(folder_path)
-    for idx, image_prompt in enumerate(image_prompts):
-        userDataObject = resources_pb2.UserAppIDSet(user_id=USER_ID, app_id=APP_ID)
-        post_model_outputs_response = stub.PostModelOutputs(
-            service_pb2.PostModelOutputsRequest(
-                user_app_id=userDataObject,
-                model_id=MODEL_ID,
-                inputs=[
-                    resources_pb2.Input(
-                        data=resources_pb2.Data(
-                            text=resources_pb2.Text(
-                                raw=image_prompt
-                            )
-                        )
-                    )
-                ]
-            ),
-            metadata=metadata
-        )
-        if post_model_outputs_response.status.code != status_code_pb2.SUCCESS:
-            print(post_model_outputs_response.status)
-            raise Exception("Post model outputs failed, status: " + post_model_outputs_response.status.description)
-        output = post_model_outputs_response.outputs[0]
-        print(f"{idx+1}image generated")
-        my_bar = st.progress((idx + 1) / len(image_prompts))
-        for concept in output.data.concepts:
-            print("%s %.2f" % (concept.name, concept.value))
-
-        base64_image = output.data.image.base64
-        image_filename = f"image/image_{idx}.jpg"   
-        with open(image_filename, 'wb') as f:
-            f.write(base64_image)
     
-    st.success("Images Generated Sucessfully")
+    audio_folder = "audio"
+    audio_files = os.listdir(audio_folder)
+    for audio_file in audio_files:
+        st.audio(os.path.join(audio_folder, audio_file))
 
-    st.success("Generating video using moviepy")
+    st.success("Generating images using " + image_model)
 
-    import cv2
-    import os
-    import numpy as np
-    from pydub import AudioSegment
-    import streamlit as st
+    try:
+        dalle.generate_images(image_model, image_prompts, clarifai_pat)
+    except Exception as e:
+        st.error(f"Error occurred during image generation: {str(e)}")
+        st.stop()
+    
+    st.success("Images Generated Successfully")
 
-    def draw_text_with_background(img, text, font, font_scale, font_thickness, font_color, bg_color, position):
-        # Draw text with background
-        img_with_text = img.copy()
-        (text_width, text_height), baseline = cv2.getTextSize(text, font, font_scale, font_thickness)
+    image_folder = "image"
+    audio_folder = "audio"
 
-        # Create a black background behind the text
-        bg_position = position
-        img_with_text = cv2.rectangle(img_with_text, bg_position, 
-                                    (bg_position[0] + text_width, bg_position[1] + text_height), bg_color, thickness=cv2.FILLED)
+    image_files = os.listdir(image_folder)
+    audio_files = os.listdir(audio_folder)
 
-        # Draw text on the black background
-        text_position = (position[0], position[1] + text_height - baseline)
-        cv2.putText(img_with_text, text, text_position, font, font_scale, font_color, font_thickness, cv2.LINE_AA)
+    num_images = len(image_files)
+    num_audios = len(audio_files)
 
-        return img_with_text
+    num_cols = 2
+    st.header("Images and Audios")
+    if num_images > 0 and num_audios > 0:
+        col1, col2 = st.columns(num_cols)
 
-    def split_subtitle(subtitle, max_chars_per_row):
-        # Split subtitle into two lines with an appropriate number of words
-        words = subtitle.split()
-        wrapped_text = []
-        current_line = []
-        current_line_length = 0
-        max_line_length = max_chars_per_row
-        for word in words:
-            if current_line_length + len(word) + 1 <= max_line_length:
-                current_line.append(word)
-                current_line_length += len(word) + 1
-            else:
-                wrapped_text.append(" ".join(current_line))
-                current_line = [word]
-                current_line_length = len(word) + 1
-        if current_line:
-            wrapped_text.append(" ".join(current_line))
-        return wrapped_text
+        for i, (audio_file, image_file) in enumerate(zip(audio_files, image_files)):
+            audio_path = os.path.join(audio_folder, audio_file)
+            image_path = os.path.join(image_folder, image_file)
+            
+            # Generate unique key for each download button
+            download_button_key = f"download_button_{i}"
+            
+            with col1 if i < num_audios // num_cols else col2:
+                st.audio(audio_path, format='audio/mp3')
+                st.image(image_path, width=325)
+                
+                # Add unique key to download_button
+                st.download_button(
+                    label="Download Image",
+                    data=open(image_path, "rb").read(),
+                    file_name=image_file,
+                    mime="image/jpeg",
+                    key=download_button_key
+                )
 
-    output_video_filename = "output_video.mp4"
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 1
-    font_thickness = 2
-    font_color = (255, 255, 255)
-    bg_color = (0, 0, 0)
-    audio_folder = r"audio"
-    image_folder = r"image"
-    max_chars_per_row = 40  # Adjust the maximum characters per row as needed
+    
 
-    image_filenames = [os.path.join(image_folder, filename) for filename in os.listdir(image_folder) if filename.endswith(".jpg")]
-    audio_filenames = [os.path.join(audio_folder, filename) for filename in os.listdir(audio_folder) if filename.endswith(".mp3")]
-
-    image_filenames.sort()
-    audio_filenames.sort()
-
-    audio_clips = [AudioSegment.from_file(audio_filename) for audio_filename in audio_filenames]
-    subtitle_durations = [len(audio_clip) for audio_clip in audio_clips]
-    subtitle_start_times = [sum(subtitle_durations[:i]) for i in range(len(subtitle_durations))]
-    subtitle_end_times = [start_time + duration for start_time, duration in zip(subtitle_start_times, subtitle_durations)]
-    frame_width, frame_height = cv2.imread(image_filenames[0]).shape[1], cv2.imread(image_filenames[0]).shape[0]
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    out = cv2.VideoWriter(output_video_filename, fourcc, 30, (frame_width, frame_height))
-
-    for idx, (image_filename, audio_clip) in enumerate(zip(image_filenames, audio_clips)):
-        img = cv2.imread(image_filename)
-        start_time, end_time = subtitle_start_times[idx] / 1000, subtitle_end_times[idx] / 1000
-        subtitle = narrator_prompts[idx]
-        subtitle_lines = split_subtitle(subtitle, max_chars_per_row)
-
-        # Process each line of subtitle
-        for line_idx, subtitle_line in enumerate(subtitle_lines):
-            # Calculate position for center alignment
-            text_position = ((frame_width - cv2.getTextSize(subtitle_line, font, font_scale, font_thickness)[0][0]) // 2, frame_height - 50)
-
-            # Add subtitle text with background to the image
-            img_with_text = draw_text_with_background(img, subtitle_line, font, font_scale, font_thickness, font_color, bg_color, text_position)
-            img_with_text = cv2.cvtColor(img_with_text, cv2.COLOR_BGR2RGB)
-
-            # Write to video
-            for i in range(int(audio_clip.duration_seconds * 30)):
-                out.write(cv2.cvtColor(img_with_text, cv2.COLOR_BGR2RGB))
-
-    # Release the video writer
-    out.release()
-
-    # Save the final video with audio
-    final_audio = sum(audio_clips)  # Combine all audio clips
-    final_audio.export("temp_audio.wav", format="wav")
-    os.system(f"ffmpeg -y -i output_video.mp4 -i temp_audio.wav -c:v copy -c:a aac -strict experimental -map 0:v:0 -map 1:a:0 final_output_video.mp4")
-    st.success("Video Generated Successfully")
+    
     st.balloons()
-    st.video("final_output_video.mp4")
-
-
-
-
+    video_generator = makevideo.VideoGenerator()  
+    image_folder = "image" 
+    audio_folder = "audio"  
+    output_file = "output_video.mp4"  
+    video_file = video_generator.generate_video(image_folder, audio_folder, output_file)
+    st.success("Video Generated Successfully")
+    st.video(video_file)
 
     
 
