@@ -29,6 +29,8 @@ class VideoGenerator:
             return
 
         clips = []
+        black_clip = ColorClip((1024, 1024), color=[0, 0, 0], duration=1)  # Black background
+
         for i in range(len(image_files)):
             image_file = image_files[i]
             audio_file = os.listdir(audio_folder)[i]
@@ -36,9 +38,6 @@ class VideoGenerator:
             image_clip = ImageClip(image_file)
             audio_clip = AudioFileClip(os.path.join(audio_folder, audio_file))
             image_duration = audio_clip.duration
-            
-            # Set duration and resize image clip
-            image_clip = image_clip.set_duration(image_duration).resize(width=1024, height=1024)
 
             # Apply crossfade transition
             if i > 0:
@@ -50,7 +49,7 @@ class VideoGenerator:
                 image_clip = image_clip.crossfadein(1)  # Fade in for the first clip
             
             # Combine image and audio
-            combined_clip = image_clip.set_audio(audio_clip)
+            combined_clip = CompositeVideoClip([black_clip.set_duration(image_duration), image_clip.set_audio(audio_clip)])
             clips.append(combined_clip)
 
         final_clip = concatenate_videoclips(clips, method="compose")
