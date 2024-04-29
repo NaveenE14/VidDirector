@@ -114,7 +114,7 @@ def download_audio_from_youtube(video_url, output_path):
         return False
 
 # Add YouTube link input with unique key
-youtube_link = st.text_input("Enter YouTube video link:", key="youtube_link")
+youtube_link = st.text_input("Enter YouTube video link for background music:", key="youtube_link")
 
 # Generate audio file based on the provided YouTube link
 if st.button("Download Audio"):
