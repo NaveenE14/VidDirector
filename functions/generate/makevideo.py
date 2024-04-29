@@ -20,14 +20,12 @@ class VideoGenerator:
             print(f"Audio folder {audio_folder} does not exist.")
             return
 
-        # Get list of image files
         image_files = sorted([
             os.path.join(image_folder, img)
             for img in os.listdir(image_folder)
             if img.endswith(".png") or img.endswith(".jpg")
         ])
 
-        # Check if there are audio files for each image
         if len(image_files) != len(os.listdir(audio_folder)):
             print("Number of image files does not match number of audio files.")
             return
@@ -38,11 +36,9 @@ class VideoGenerator:
             audio_clip = AudioFileClip(os.path.join(audio_folder, audio_file))
             image_duration = audio_clip.duration
             
-            # Resize image clip based on zoom_in_out effect
             image_clip = image_clip.set_duration(image_duration)
             image_clip = image_clip.resize(width=1024, height=1024).resize(self.zoom_in_out)
             
-            # Combine image and audio
             combined_clip = CompositeVideoClip([image_clip.set_audio(audio_clip)])
             clips.append(combined_clip)
 
