@@ -124,17 +124,6 @@ if st.button("Download Audio"):
         audio_file_path = os.path.join(output_path, "downloadedaudio.mp3")
         st.audio(audio_file_path)
 
-st.balloons()
-video_generator = makevideo.VideoGenerator()  
-image_folder = "image" 
-audio_folder = "audio"  
-output_file = "output_video.mp4"  
-video_file = video_generator.generate_video(image_folder, audio_folder, output_file)
-st.success("Video Generated Successfully")
-st.video(video_file)
-
-
-
 if st.button("Generate Video"):
     if not clarifai_pat:
         st.error("Please enter your Clarifai Personal Access Token.")
@@ -229,14 +218,14 @@ if st.button("Generate Video"):
             audio_path = os.path.join(audio_folder, audio_file)
             image_path = os.path.join(image_folder, image_file)
             
-            # Generate unique key for each download button
+            
             download_button_key = f"download_button_{i}"
             
             with col1 if i < num_audios // num_cols else col2:
                 st.audio(audio_path, format='audio/mp3')
                 st.image(image_path, width=325)
                 
-                # Add unique key to download_button
+                
                 st.download_button(
                     label="Download Image",
                     data=open(image_path, "rb").read(),
