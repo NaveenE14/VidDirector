@@ -40,7 +40,6 @@ class VideoGenerator:
             
             # Resize image clip based on zoom_in_out effect
             image_clip = image_clip.set_duration(image_duration)
-            image_clip = image_clip.resize(width=1024, height=1024).resize(self.zoom_in_out)
             
             # Combine image and audio
             combined_clip = CompositeVideoClip([image_clip.set_audio(audio_clip)])
