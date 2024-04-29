@@ -128,36 +128,6 @@ if st.button("Download Audio"):
 
 
 
-# Display all images and audio files in two columns based on length
-image_folder = "image"
-audio_folder = "audio"
-
-image_files = os.listdir(image_folder)
-audio_files = os.listdir(audio_folder)
-
-num_images = len(image_files)
-num_audios = len(audio_files)
-
-num_cols = 2
-st.header("Images and Audios")
-if num_images > 0 and num_audios > 0:
-    col1, col2 = st.columns(num_cols)
-
-    for i, (audio_file, image_file) in enumerate(zip(audio_files, image_files)):
-        audio_path = os.path.join(audio_folder, audio_file)
-        image_path = os.path.join(image_folder, image_file)
-        with col1 if i < num_audios // num_cols else col2:
-            st.audio(audio_path, format='audio/mp3')
-            st.image(image_path, width=325)
-            st.download_button(
-                label="Download Image",
-                data=open(image_path, "rb").read(),
-                file_name=image_file,
-                mime="image/jpeg"
-            )
-
-
-
 if st.button("Generate Video"):
     if not clarifai_pat:
         st.error("Please enter your Clarifai Personal Access Token.")
