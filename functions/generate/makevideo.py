@@ -3,7 +3,6 @@ import os
 import numpy as np
 from PIL import Image
 
-
 class VideoGenerator:
     def __init__(self):
         self.folder_path = None
@@ -39,7 +38,7 @@ class VideoGenerator:
             image_duration = audio_clip.duration
             
             image_clip = image_clip.set_duration(image_duration)
-            image_clip = image_clip.resize(width=1024, height=1024, method='bicubic')  # You can use other methods like 'nearest', 'bilinear', etc.
+            image_clip = image_clip.resize((1024, 1024))  # Resize directly with new size tuple
             image_clip = image_clip.resize(self.zoom_in_out)
             
             combined_clip = CompositeVideoClip([image_clip.set_audio(audio_clip)])
